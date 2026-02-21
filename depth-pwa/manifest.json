@@ -1,0 +1,22 @@
+{
+  "name": "DEPTH — 해저 교신",
+  "short_name": "DEPTH",
+  "description": "해저 347m에 조난당한 잠수함 승조원과의 교신",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#080c10",
+  "theme_color": "#00d4aa",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
