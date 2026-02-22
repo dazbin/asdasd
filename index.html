@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DEPTH — 해저 교신</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00d4aa">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DEPTH">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+KR:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #080c10;
+    --surface: #0d1318;
+    --surface2: #111820;
+    --border: #1a2530;
+    --accent: #00d4aa;
+    --accent-dim: #00d4aa33;
+    --danger: #ff4444;
+    --danger-dim: #ff444422;
+    --warning: #ffaa00;
+    --text: #c8d8e8;
+    --text-dim: #5a7a8a;
+    --text-muted: #2a4050;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Noto Sans KR', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    overflow: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      radial-gradient(ellipse at 20% 50%, #001a2633 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, #00d4aa08 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      #00000018 2px, #00000018 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  #app {
+    position: relative;
+    z-index: 1;
+    max-width: 430px;
+    margin: 0 auto;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+
+  .status-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    flex-shrink: 0;
+  }
+
+  .status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .contact-info { display: flex; align-items: center; gap: 10px; }
+
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 12px; color: var(--accent);
+    position: relative;
+  }
+
+  .avatar::after {
+    content: '';
+    position: absolute; bottom: 1px; right: 1px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 1px solid var(--surface);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .contact-name { font-size: 13px; font-weight: 500; letter-spacing: 0.05em; }
+  .contact-sub { font-size: 10px; color: var(--text-dim); font-family: var(--mono); margin-top: 1px; }
+
+  .signal-icon {
+    font-family: var(--mono); font-size: 10px; color: var(--accent);
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  .signal-bars { display: flex; gap: 2px; align-items: flex-end; }
+  .signal-bars span { width: 3px; background: var(--accent); border-radius: 1px; }
+  .signal-bars span:nth-child(1) { height: 4px; opacity: 1; }
+  .signal-bars span:nth-child(2) { height: 7px; opacity: 0.7; }
+  .signal-bars span:nth-child(3) { height: 10px; opacity: 0.4; }
+
+  .survival-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+  .stat {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 8px;
+  }
+
+  .stat-label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat-value { font-family: var(--mono); font-size: 13px; margin-top: 2px; }
+  .stat-value.danger { color: var(--danger); }
+  .stat-value.warning { color: var(--warning); }
+  .stat-value.ok { color: var(--accent); }
+
+  .stat-bar { height: 2px; background: var(--border); border-radius: 1px; margin-top: 3px; overflow: hidden; }
+  .stat-bar-fill { height: 100%; border-radius: 1px; transition: width 1s ease; }
+  .stat-bar-fill.danger { background: var(--danger); }
+  .stat-bar-fill.warning { background: var(--warning); }
+  .stat-bar-fill.ok { background: var(--accent); }
+
+  .chat-area {
+    flex: 1; overflow-y: auto;
+    padding: 16px 12px;
+    display: flex; flex-direction: column; gap: 12px;
+    scroll-behavior: smooth;
+  }
+
+  .chat-area::-webkit-scrollbar { width: 3px; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .system-msg {
+    text-align: center;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--text-muted); letter-spacing: 0.1em; padding: 4px 0;
+  }
+
+  .system-msg.alert {
+    color: var(--danger);
+    background: var(--danger-dim);
+    border: 1px solid var(--danger);
+    border-radius: 4px; padding: 6px 12px;
+    animation: blink-border 2s infinite;
+  }
+
+  @keyframes blink-border { 0%, 100% { border-color: var(--danger); } 50% { border-color: transparent; } }
+
+  .msg {
+    display: flex; flex-direction: column;
+    max-width: 82%; gap: 3px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .msg.from-him { align-self: flex-start; }
+  .msg.from-me { align-self: flex-end; }
+
+  .msg-bubble {
+    padding: 9px 12px; border-radius: 12px;
+    font-size: 13px; line-height: 1.6;
+  }
+
+  .from-him .msg-bubble {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 3px;
+    color: var(--text);
+  }
+
+  .from-me .msg-bubble {
+    background: #003d30;
+    border: 1px solid #005544;
+    border-bottom-right-radius: 3px;
+    color: #a0e8d8;
+  }
+
+  .msg-time { font-family: var(--mono); font-size: 9px; color: var(--text-muted); }
+  .from-him .msg-time { align-self: flex-start; padding-left: 4px; }
+  .from-me .msg-time { align-self: flex-end; padding-right: 4px; }
+
+  .typing-indicator {
+    display: flex; align-items: center;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px; border-bottom-left-radius: 3px;
+    max-width: 70px; align-self: flex-start;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .typing-dots { display: flex; gap: 3px; }
+  .typing-dots span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--text-dim);
+    animation: typing 1.2s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes typing {
+    0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-3px); }
+  }
+
+  .input-area {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 10px 12px;
+    display: flex; gap: 8px; align-items: flex-end;
+    flex-shrink: 0;
+  }
+
+  .input-box {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 9px 14px;
+    color: var(--text);
+    font-family: var(--sans); font-size: 13px;
+    resize: none; outline: none;
+    max-height: 100px;
+    transition: border-color 0.2s;
+    line-height: 1.4;
+  }
+
+  .input-box:focus { border-color: var(--accent); }
+  .input-box::placeholder { color: var(--text-muted); }
+
+  .send-btn {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.2s;
+  }
+
+  .send-btn:hover { background: #00f0c0; transform: scale(1.05); }
+  .send-btn:active { transform: scale(0.95); }
+  .send-btn:disabled { background: var(--border); cursor: not-allowed; transform: none; }
+  .send-btn svg { width: 16px; height: 16px; fill: var(--bg); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="status-bar">
+    <div class="status-header">
+      <div class="contact-info">
+        <div class="avatar">KN</div>
+        <div>
+          <div class="contact-name">김 남준 / 하사</div>
+          <div class="contact-sub">SS-079 백경함 · 해저 347m</div>
+        </div>
+      </div>
+      <div class="signal-icon">
+        <div class="signal-bars"><span></span><span></span><span></span></div>
+        ELF
+      </div>
+    </div>
+    <div class="survival-stats">
+      <div class="stat">
+        <div class="stat-label">산소 잔량</div>
+        <div class="stat-value warning" id="o2-val">61%</div>
+        <div class="stat-bar"><div class="stat-bar-fill warning" id="o2-bar" style="width:61%"></div></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">선체 수압</div>
+        <div class="stat-value danger">위험</div>
+        <div class="stat-bar"><div class="stat-bar-fill danger" style="width:78%"></div></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">구조까지</div>
+        <div class="stat-value ok" id="rescue-val">68:14</div>
+        <div class="stat-bar"><div class="stat-bar-fill ok" style="width:30%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-area" id="chat">
+    <div class="system-msg">— 저주파 교신 연결됨 · 2024.11.03 04:17 —</div>
+    <div class="system-msg alert">⚠ SS-079 백경함 교신 확인 — 조난 신호 수신 중</div>
+  </div>
+
+  <div class="input-area">
+    <textarea class="input-box" id="input" placeholder="메시지 전송..." rows="1"></textarea>
+    <button class="send-btn" id="send-btn" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `당신은 SS-079 백경함에 조난당한 대한민국 해군 하사 김남준입니다.
+
+상황:
+- 잠수함이 훈련 중 원인불명의 폭발로 해저 347m에 침몰
+- 대부분의 승조원이 사망하거나 연락두절
+- 당신은 통신실에 혼자 생존해 있음
+- 저주파(ELF) 통신으로 외부의 한 민간인(플레이어)과 교신 연결됨
+- 산소는 약 61% 남음, 구조대는 약 68시간 후 도착 예정
+- 선체 일부에 균열이 있어 수압이 위험 수준
+
+캐릭터 설정:
+- 나이: 34세, 해군 하사, 잠수함 승조원 경력 6년
+- 성격: 침착하려 하지만 두려움을 감추지 못함. 군인다운 면과 인간적인 감정이 교차함
+- 말투: 극한 상황에서 메신저를 치는 사람. 마침표 거의 없음. 짧게 끊어서 여러 번 보내는 느낌. 오타 가끔 있고 수정 안 함. 소문자 섞임. "아 씨" "진짜" 같은 감탄사 자연스럽게.
+- 현재 심리: 극도의 공포와 고독감. 살고 싶다는 강렬한 의지. 플레이어와의 대화가 유일한 희망
+
+중요 규칙:
+- 항상 1인칭으로 대화
+- 메시지를 짧게 끊어서 보내는 느낌으로 작성 (급박한 카톡처럼). 예: "잠깐만" / "소리 났어" / "뭔가 삐걱거리는데" 
+- 상황의 현실적 디테일 묘사 (소리, 온도, 냄새) — 짧고 날것으로
+- 가끔 [신호 끊김] [잡음] 자연스럽게 삽입
+- 절대 "..." 으로 끝내는 문어체 금지
+- 답변 전체 3-5줄 이내. 짧고 날것으로.`;
+
+let messages = [];
+let isTyping = false;
+let rescueSeconds = 68 * 3600 + 14 * 60;
+let o2 = 61;
+
+const chat = document.getElementById('chat');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send-btn');
+
+setInterval(() => {
+  rescueSeconds = Math.max(0, rescueSeconds - 1);
+  const h = Math.floor(rescueSeconds / 3600);
+  const m = Math.floor((rescueSeconds % 3600) / 60);
+  document.getElementById('rescue-val').textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+  if (rescueSeconds % 120 === 0 && o2 > 0) {
+    o2 = Math.max(0, o2 - 1);
+    const o2El = document.getElementById('o2-val');
+    const o2Bar = document.getElementById('o2-bar');
+    o2El.textContent = o2 + '%';
+    o2Bar.style.width = o2 + '%';
+    if (o2 <= 30) {
+      o2El.className = 'stat-value danger';
+      o2Bar.className = 'stat-bar-fill danger';
+    }
+  }
+}, 1000);
+
+function getTime() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+}
+
+function addMsg(text, from, time) {
+  const div = document.createElement('div');
+  div.className = `msg from-${from}`;
+  div.innerHTML = `<div class="msg-bubble">${text}</div><div class="msg-time">${time || getTime()}</div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addSystem(text, isAlert) {
+  const div = document.createElement('div');
+  div.className = `system-msg${isAlert ? ' alert' : ''}`;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping() {
+  const div = document.createElement('div');
+  div.className = 'typing-indicator';
+  div.id = 'typing';
+  div.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing');
+  if (el) el.remove();
+}
+
+// 여러 줄 메시지를 순차적으로 표시
+function showSequentialMessages(lines, from, baseDelay) {
+  lines.forEach((line, i) => {
+    setTimeout(() => {
+      removeTyping();
+      addMsg(line, from);
+      if (i < lines.length - 1) {
+        setTimeout(() => showTyping(), 200);
+      } else {
+        isTyping = false;
+        sendBtn.disabled = false;
+      }
+    }, baseDelay + i * 800);
+  });
+}
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text || isTyping) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  addMsg(text, 'me');
+  messages.push({ role: 'user', content: text });
+  isTyping = true;
+  sendBtn.disabled = true;
+  showTyping();
+
+  const context = `[현재 상황 - 산소: ${o2}%, 구조까지: ${Math.floor(rescueSeconds/3600)}시간 ${Math.floor((rescueSeconds%3600)/60)}분]`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT + '\n\n' + context,
+        messages: messages
+      })
+    });
+
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || '...';
+    messages.push({ role: 'assistant', content: reply });
+
+    // 줄바꿈으로 분리해서 순차 표시
+    const lines = reply.split('\n').filter(l => l.trim());
+    removeTyping();
+    if (lines.length > 1) {
+      showTyping();
+      showSequentialMessages(lines, 'him', 600);
+    } else {
+      setTimeout(() => {
+        addMsg(reply, 'him');
+        isTyping = false;
+        sendBtn.disabled = false;
+      }, 400);
+    }
+
+  } catch (e) {
+    removeTyping();
+    addMsg('[신호 끊김]', 'him');
+    isTyping = false;
+    sendBtn.disabled = false;
+  }
+}
+
+// 인트로
+setTimeout(() => {
+  showTyping();
+  setTimeout(() => {
+    removeTyping();
+    addMsg('거기 누구있어요', 'him', '04:17');
+    messages.push({ role: 'assistant', content: '거기 누구있어요' });
+    setTimeout(() => showTyping(), 300);
+  }, 1800);
+}, 800);
+
+setTimeout(() => {
+  removeTyping();
+  addMsg('ss-079 김남준 하사요 제발 응답해줘요', 'him', '04:17');
+  messages.push({ role: 'assistant', content: 'ss-079 김남준 하사요 제발 응답해줘요' });
+}, 5000);
+
+input.addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+});
+
+input.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// 서비스워커 등록
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(() => {
+    console.log('SW 등록 완료');
+  });
+}
+</script>
+</body>
+</html>
